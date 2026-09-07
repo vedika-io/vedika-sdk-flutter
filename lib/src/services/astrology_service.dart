@@ -203,20 +203,115 @@ class AstrologyService {
   Future<Map<String, dynamic>> kpPrediction(Map<String, dynamic> params) =>
       _client.post('/v2/astrology/kp/prediction', params);
 
-  // ── Vastu ────────────────────────────────────────────────────────
+  // ── Vastu (80 operations, 17 families) ────────────────────────────
+  // 2026-08-10: the previous three methods pointed at /vastu/mandala,
+  // /vastu/entrance and /vastu/room-placement — none of which exist in the
+  // 76-operation surface, so every call 404'd. These are repointed at the real
+  // paths and joined by helpers covering the full family set, plus a generic
+  // escape hatch for the long tail. Vastu takes a BUILDING (plot polygon, room
+  // list, compass zone), never a birth chart.
 
-  /// Vastu Mandala analysis.
+  /// Any Vastu operation by its path suffix under `/v2/astrology/vastu/`.
+  /// e.g. `vastu('score/overall', {rooms: [...]})`.
+  ///
+  /// The 11 `reference/*` tables (10 original + `reference/gate-obstructions`)
+  /// are GET-only (a POST returns 405) and `direction/declination` is a
+  /// GET+POST dual whose verified path is GET-with-query, so both dispatch
+  /// GET (params become query string); everything else is POST. Mirrors
+  /// vedika-v2/src/vastu.rs.
+  Future<Map<String, dynamic>> vastu(String op, Map<String, dynamic> params) {
+    final path = op.replaceAll(RegExp(r'^/+'), '');
+    if (path.startsWith('reference/') || path == 'direction/declination') {
+      return _client.get(
+        '/v2/astrology/vastu/$path',
+        queryParams: params.map((k, v) => MapEntry(k, '$v')),
+      );
+    }
+    return _client.post('/v2/astrology/vastu/$path', params);
+  }
+
+  /// A GET reference table, e.g. `reference/mandala/9-zone`,
+  /// `reference/mandala/45-devatas`, `reference/directions/8`,
+  /// `reference/defects/catalog`, `reference/remedies/catalog`,
+  /// `reference/gate-obstructions`.
+  Future<Map<String, dynamic>> vastuReference(String table) =>
+      _client.get('/v2/astrology/vastu/${table.replaceAll(RegExp(r'^/+'), '')}');
+
+  /// Project a mandala onto a plot. [scheme] is `9-zone`, `81-pada` or
+  /// `brahmasthan`. Body: `{plotPolygon, bearingDeg}`.
+  Future<Map<String, dynamic>> vastuMandalaProject(
+          String scheme, Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/mandala/project/$scheme', params);
+
+  /// Back-compat alias — now the 9-zone mandala projection (was the dead
+  /// `/vastu/mandala`). Body: `{plotPolygon, bearingDeg}`.
   Future<Map<String, dynamic>> vastuMandala(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/vastu/mandala', params);
+      vastuMandalaProject('9-zone', params);
 
-  /// Vastu entrance analysis.
-  Future<Map<String, dynamic>> vastuEntrance(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/vastu/entrance', params);
+  /// Door-pada classifier. Body: `{plotPolygon, doorXY, bearingDeg}`.
+  Future<Map<String, dynamic>> vastuEntrancePada(Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/entrance/pada', params);
 
-  /// Vastu room placement.
-  Future<Map<String, dynamic>> vastuRoomPlacement(
+  /// Entrance recommendation. Body: `{plot, ...}`.
+  Future<Map<String, dynamic>> vastuEntranceRecommend(
           Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/vastu/room-placement', params);
+      _client.post('/v2/astrology/vastu/entrance/recommend', params);
+
+  /// Back-compat alias — now the door-pada classifier (was the dead
+  /// `/vastu/entrance`).
+  Future<Map<String, dynamic>> vastuEntrance(Map<String, dynamic> params) =>
+      vastuEntrancePada(params);
+
+  /// Single-room placement, e.g. `vastuRoom('kitchen', {zone: 'southeast'})`.
+  /// [roomType]: kitchen, bedroom, pooja, toilet, staircase, study, living,
+  /// dining, store, water-storage.
+  Future<Map<String, dynamic>> vastuRoom(
+          String roomType, Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/room/$roomType', params);
+
+  /// Back-compat alias — routes to `/room/{roomType}` from the params
+  /// (was the dead `/vastu/room-placement`). Provide `roomType` in [params].
+  Future<Map<String, dynamic>> vastuRoomPlacement(
+      Map<String, dynamic> params) {
+    final roomType = (params['roomType'] ?? params['room'] ?? 'kitchen').toString();
+    final body = Map<String, dynamic>.from(params)..remove('roomType')..remove('room');
+    return vastuRoom(roomType, body);
+  }
+
+  /// Site placement, e.g. `vastuPlacement('borewell', {zone: 'north-east'})`.
+  Future<Map<String, dynamic>> vastuPlacement(
+          String feature, Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/placement/$feature', params);
+
+  /// Compliance audit. [kind]: `single-room`, `floor-plan`,
+  /// `floor-plan-detailed`. Body: `{rooms: [...], plot?}`.
+  Future<Map<String, dynamic>> vastuAudit(
+          String kind, Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/audit/$kind', params);
+
+  /// Vastu score. [kind]: `overall`, `zone-wise`, `compliance-index`.
+  Future<Map<String, dynamic>> vastuScore(
+          String kind, Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/score/$kind', params);
+
+  /// Generate up to 3 ranked floor plans from a plot + room programme.
+  Future<Map<String, dynamic>> vastuPlanGenerate(
+          Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/plan/generate', params);
+
+  /// Generate a floor plan from a high-level brief (BHK, bathrooms, parking…).
+  Future<Map<String, dynamic>> vastuPlanFromRequirements(
+          Map<String, dynamic> params) =>
+      _client.post('/v2/astrology/vastu/plan/from-requirements', params);
+
+  /// Magnetic declination (true-north correction) for a location. India grid.
+  Future<Map<String, dynamic>> vastuDeclination(
+          {required double lat, required double lon, String? date}) =>
+      _client.get('/v2/astrology/vastu/direction/declination', queryParams: {
+        'lat': lat.toString(),
+        'lon': lon.toString(),
+        if (date != null) 'date': date,
+      });
 
   // ── Lal Kitab ────────────────────────────────────────────────────
 

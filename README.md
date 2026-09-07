@@ -125,6 +125,42 @@ final vedika = VedikaClient(
 );
 ```
 
+### Where your API key is allowed to go
+
+The client attaches `Authorization: Bearer <your key>` only to an approved
+origin. `baseUrl` is validated when the client is constructed, and a
+disallowed value throws `ArgumentError` before any request is made:
+
+| baseUrl | Result |
+| --- | --- |
+| `https://api.vedika.io` (default) | allowed |
+| `http://localhost:8080`, `http://127.0.0.1:8080` | allowed (local development) |
+| `https://anything-else.example` | **refused** |
+| `http://api.vedika.io` | refused (cleartext); opt in with `allowInsecureHttp: true` |
+| `https://api.vedika.io@attacker.example` | refused (embedded credentials) |
+
+Redirects are never followed, so a `3xx` response cannot move your key to
+another origin; it surfaces as a `VedikaApiError` instead.
+
+If you deliberately route through your own gateway, name that exact host:
+
+```dart
+final vedika = VedikaClient(
+  apiKey: 'vk_live_YOUR_KEY',
+  baseUrl: 'https://vedika-proxy.your-company.internal',
+  trustedHosts: const ['vedika-proxy.your-company.internal'],
+);
+```
+
+There is no "allow any host" switch. `allowInsecureHttp` relaxes the scheme
+only; it never widens the host gate.
+
+> **Mobile note.** Anything compiled into a shipped app can be extracted from
+> the package by anyone who installs it, including a `vk_live_` key. Treat a
+> key embedded in a Flutter app as public. For consumer apps, call the Vedika
+> API from your own backend and keep the key on the server. Never read
+> `baseUrl` from remote config, a deep link, or a QR code.
+
 ## Testing
 
 Inject a mock HTTP client for testing:

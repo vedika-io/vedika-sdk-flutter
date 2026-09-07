@@ -47,6 +47,13 @@ class VedikaClient {
   final http.Client _httpClient;
   final bool _ownsClient;
 
+  /// The single host this client is permitted to send the API key to, pinned at
+  /// construction from the validated [config.baseUrl].
+  late final String _allowedHost;
+
+  /// The canonical Vedika API origin. The only host allowed by default.
+  static const String vedikaApiHost = 'api.vedika.io';
+
   /// Vedic astrology: birth charts, dashas, doshas, panchang, muhurta,
   /// matching, predictions, KP, Jaimini, Tajaka, Vastu, Lal Kitab,
   /// numerology, ashtakavarga, divisional charts, and more.
@@ -150,11 +157,18 @@ class VedikaClient {
   /// or `vk_ent_*` (enterprise).
   ///
   /// Optionally inject a custom [httpClient] for testing.
+  ///
+  /// [trustedHosts] is the deliberate, per-host escape hatch for a customer
+  /// gateway or reverse proxy. You must name the exact host the API key is
+  /// allowed to reach; there is no blanket "any host" switch, because that is
+  /// the bug this gate exists to prevent.
   VedikaClient({
     required String apiKey,
     String? baseUrl,
     Duration? timeout,
     http.Client? httpClient,
+    bool allowInsecureHttp = false,
+    List<String> trustedHosts = const [],
   })  : config = VedikaConfig(
           apiKey: apiKey,
           baseUrl: baseUrl ?? 'https://api.vedika.io',
@@ -162,6 +176,18 @@ class VedikaClient {
         ),
         _httpClient = httpClient ?? http.Client(),
         _ownsClient = httpClient == null {
+    // Credential-routing policy (R-004). Two independent gates, both closed by
+    // default:
+    //   scheme - the key rides only on HTTPS, so a cleartext baseUrl can't ship
+    //            it in the clear. HTTP is allowed for loopback (local dev);
+    //            remote HTTP only behind an explicit, clearly-unsafe opt-in.
+    //   origin - the key is attached only for the Vedika API host, loopback, or
+    //            a host the caller named in [trustedHosts]. Without this an
+    //            attacker-supplied baseUrl (remote config, deep link, QR) makes
+    //            a shipped mobile app POST the customer's key to the attacker.
+    // Throws on anything else, before any request can carry the key.
+    _assertSafeBaseUrl(config.baseUrl, allowInsecureHttp, trustedHosts);
+    _allowedHost = Uri.parse(config.baseUrl).host.toLowerCase();
     astrology = AstrologyService(this);
     western = WesternService(this);
     tarot = TarotService(this);
@@ -189,6 +215,39 @@ class VedikaClient {
     geocode = GeocodeService(this);
   }
 
+  /// Sends a request with redirect-following DISABLED.
+  ///
+  /// Credential-routing hardening (R-004): the `http` convenience methods
+  /// (`get`/`post`) follow redirects with `followRedirects = true` and re-send
+  /// the `Authorization` header to the redirect destination, leaking the API
+  /// key to whatever origin a 3xx points at. Building the request explicitly
+  /// with `followRedirects = false` means a 3xx is returned as-is and surfaces
+  /// as an error in [_handleResponse] — the key is never forwarded.
+  Future<http.Response> _send(
+    String method,
+    Uri uri, {
+    String? body,
+  }) async {
+    // Defence in depth: never attach the key to a host other than the one
+    // validated at construction. The URI is built from config.baseUrl plus a
+    // fixed "/v2/..." path, so this cannot fire today - it is here so that any
+    // future change to URI construction fails closed instead of leaking.
+    if (uri.host.toLowerCase() != _allowedHost) {
+      throw ArgumentError.value(
+        uri.toString(),
+        'uri',
+        'refusing to send credentials to "${uri.host}"; this client is '
+            'pinned to "$_allowedHost"',
+      );
+    }
+    final request = http.Request(method, uri);
+    request.headers.addAll(_headers);
+    request.followRedirects = false;
+    if (body != null) request.body = body;
+    final streamed = await _httpClient.send(request).timeout(config.timeout);
+    return http.Response.fromStream(streamed);
+  }
+
   /// Sends a GET request to the Vedika API.
   Future<Map<String, dynamic>> get(
     String path, {
@@ -196,9 +255,7 @@ class VedikaClient {
   }) async {
     final uri = Uri.parse('${config.baseUrl}$path')
         .replace(queryParameters: queryParams);
-    final response = await _httpClient
-        .get(uri, headers: _headers)
-        .timeout(config.timeout);
+    final response = await _send('GET', uri);
     return _handleResponse(response);
   }
 
@@ -210,9 +267,7 @@ class VedikaClient {
   }) async {
     final uri = Uri.parse('${config.baseUrl}$path')
         .replace(queryParameters: queryParams);
-    final response = await _httpClient
-        .get(uri, headers: _headers)
-        .timeout(config.timeout);
+    final response = await _send('GET', uri);
     if (response.statusCode != 200) {
       _handleResponse(response); // will throw
     }
@@ -225,9 +280,7 @@ class VedikaClient {
     Map<String, dynamic> body,
   ) async {
     final uri = Uri.parse('${config.baseUrl}$path');
-    final response = await _httpClient
-        .post(uri, headers: _headers, body: jsonEncode(body))
-        .timeout(config.timeout);
+    final response = await _send('POST', uri, body: jsonEncode(body));
     return _handleResponse(response);
   }
 
@@ -272,10 +325,20 @@ class VedikaClient {
               int.tryParse(response.headers['retry-after'] ?? ''),
         );
       default:
+        if (response.statusCode >= 300 && response.statusCode < 400) {
+          // Credential-routing (R-004): redirects are not followed, so the API
+          // key is never forwarded to the redirect destination. A 3xx from the
+          // API is unexpected and surfaced as an error rather than chased.
+          throw VedikaApiError(
+            'Unexpected redirect (HTTP ${response.statusCode}) not followed; '
+            'credentials were not forwarded. Check baseUrl.',
+            statusCode: response.statusCode,
+            body: body,
+          );
+        }
         if (response.statusCode >= 500) {
           throw VedikaServerError(
-            body['error']?.toString() ??
-                'Server error: ${response.statusCode}',
+            body['error']?.toString() ?? 'Server error: ${response.statusCode}',
             statusCode: response.statusCode,
             body: body,
           );
@@ -286,6 +349,89 @@ class VedikaClient {
           body: body,
         );
     }
+  }
+
+  /// True only for genuine loopback: the literal `localhost` or a loopback IP
+  /// (127.0.0.0/8, ::1). A DNS name that merely starts with "127." (e.g.
+  /// `127.attacker.invalid`) is NOT loopback and must not bypass the policy.
+  static bool _isLoopbackHost(String host) {
+    final h = host.replaceAll(RegExp(r'^\[|\]$'), '').toLowerCase();
+    if (h == 'localhost' || h == '::1') return true;
+    // Parse-only 127.0.0.0/8 check. Deliberately NOT dart:io's
+    // InternetAddress — that is unavailable on Flutter Web (compiled to JS it
+    // throws UnsupportedOperation), which made http://127.0.0.1 dev unusable
+    // there. Safe-direction: unusual loopback forms fall through and simply
+    // require the allowInsecureHttp opt-in.
+    final m = RegExp(r'^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$').firstMatch(h);
+    if (m == null) return false;
+    for (var i = 1; i <= 3; i++) {
+      if ((int.tryParse(m.group(i)!) ?? 999) > 255) return false;
+    }
+    return true;
+  }
+
+  /// True when [host] is the Vedika API origin, loopback, or a host the caller
+  /// explicitly named in `trustedHosts`. Exact, case-insensitive match only:
+  /// suffix matching would accept `api.vedika.io.attacker.invalid`.
+  static bool _isAllowedHost(String host, List<String> trustedHosts) {
+    final h = host.toLowerCase();
+    if (h == vedikaApiHost) return true;
+    if (_isLoopbackHost(h)) return true;
+    for (final t in trustedHosts) {
+      final candidate = t.trim().toLowerCase();
+      // A wildcard is not an allowlist. Reject it rather than honour it.
+      if (candidate.isEmpty || candidate.contains('*')) continue;
+      if (candidate == h) return true;
+    }
+    return false;
+  }
+
+  /// Enforce the credential-routing policy (R-004): scheme gate and origin
+  /// gate. Throws [ArgumentError] on a disallowed baseUrl, so the key is never
+  /// shipped in the clear or off-domain by misconfiguration.
+  static void _assertSafeBaseUrl(
+      String baseUrl, bool allowInsecureHttp, List<String> trustedHosts) {
+    final uri = Uri.tryParse(baseUrl);
+    if (uri == null || !uri.hasScheme) {
+      throw ArgumentError.value(baseUrl, 'baseUrl', 'is not a valid URL');
+    }
+    // Reject embedded credentials / path / query / fragment: the URL
+    // "https://api.vedika.io@attacker.invalid" parses with host
+    // "attacker.invalid" but reads as api.vedika.io, so the Bearer key would
+    // ride to the attacker on the first request. (R-004 credential routing)
+    if (uri.userInfo.isNotEmpty) {
+      throw ArgumentError.value(baseUrl, 'baseUrl',
+          'must not contain embedded credentials (user:pass@host)');
+    }
+    if ((uri.path.isNotEmpty && uri.path != '/') ||
+        uri.hasQuery ||
+        uri.fragment.isNotEmpty) {
+      throw ArgumentError.value(baseUrl, 'baseUrl',
+          'must be a bare origin (scheme://host[:port]) with no path/query/fragment');
+    }
+    // Origin gate. Deliberately evaluated BEFORE the scheme decision so that
+    // allowInsecureHttp relaxes the scheme only and can never widen the host.
+    if (!_isAllowedHost(uri.host, trustedHosts)) {
+      throw ArgumentError.value(
+        baseUrl,
+        'baseUrl',
+        'host "${uri.host}" is not an approved Vedika origin - the API key '
+            'would be sent off-domain. Use https://$vedikaApiHost, or name the '
+            'host in trustedHosts if you deliberately route through a proxy',
+      );
+    }
+    if (uri.scheme == 'https') return;
+    if (uri.scheme == 'http') {
+      if (_isLoopbackHost(uri.host) || allowInsecureHttp) return;
+      throw ArgumentError.value(
+        baseUrl,
+        'baseUrl',
+        'must be https:// — http:// is allowed only for loopback, or set '
+            'allowInsecureHttp: true to opt in to remote cleartext HTTP',
+      );
+    }
+    throw ArgumentError.value(
+        baseUrl, 'baseUrl', 'must use the http or https scheme');
   }
 
   /// Closes the underlying HTTP client.

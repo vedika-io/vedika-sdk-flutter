@@ -4,7 +4,7 @@ description: >
   Covers 500+ endpoints across astrology, tarot, numerology,
   Chinese astrology, I Ching, crystals, runes, palmistry,
   and 20+ spiritual and lifestyle domains.
-version: 1.0.0
+version: 1.0.1
 homepage: https://vedika.io
 repository: https://github.com/vedika-io/vedika-sdk-flutter
 documentation: https://vedika.io/docs/sdks/flutter
