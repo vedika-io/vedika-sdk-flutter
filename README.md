@@ -1,8 +1,8 @@
 # Vedika SDK for Flutter/Dart
 
-Official Flutter/Dart SDK for the [Vedika Intelligence API](https://vedika.io) -- the world's most comprehensive astrology and spiritual intelligence API.
+Official Flutter/Dart SDK for the [Vedika Intelligence API](https://vedika.io).
 
-Covers **500+ endpoints** across **23 domains** including Vedic astrology, Western astrology, tarot, Chinese astrology, I Ching, numerology, crystals, runes, human design, palmistry, and more.
+Provides typed access to Vedika capabilities including Vedic and Western astrology, tarot, Chinese astrology, I Ching, numerology, crystals, runes, human design, and palmistry.
 
 ## Installation
 

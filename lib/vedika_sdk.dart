@@ -1,6 +1,6 @@
 /// Vedika Intelligence API SDK for Flutter/Dart.
 ///
-/// Provides typed access to 500+ endpoints across 23 domains:
+/// Provides typed access to Vedika's supported astrology and divination domains:
 /// astrology, tarot, numerology, Chinese astrology, I Ching,
 /// crystals, runes, human design, palmistry, and more.
 ///
