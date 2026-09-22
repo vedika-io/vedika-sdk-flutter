@@ -1,9 +1,9 @@
 name: vedika_sdk
 description: >
   Flutter/Dart SDK for the Vedika Intelligence API.
-  Covers 500+ endpoints across astrology, tarot, numerology,
+  Typed access to capabilities across astrology, tarot, numerology,
   Chinese astrology, I Ching, crystals, runes, palmistry,
-  and 20+ spiritual and lifestyle domains.
+  and other supported domains.
 version: 1.0.1
 homepage: https://vedika.io
 repository: https://github.com/vedika-io/vedika-sdk-flutter
