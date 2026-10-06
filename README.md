@@ -1,17 +1,23 @@
 # Vedika SDK for Flutter/Dart
 
-Official Flutter/Dart SDK for the [Vedika Intelligence API](https://vedika.io).
+Official Flutter/Dart SDK for the [Vedika Intelligence API](https://vedika.io) -- the world's most comprehensive astrology and spiritual intelligence API.
 
-Provides typed access to Vedika capabilities including Vedic and Western astrology, tarot, Chinese astrology, I Ching, numerology, crystals, runes, human design, and palmistry.
+Covers **23 domains** including Vedic astrology, Western astrology, tarot, Chinese astrology, I Ching, numerology, crystals, runes, human design, palmistry, and more.
 
 ## Installation
 
-Add to your `pubspec.yaml`:
+The package is installed from GitHub; it is not on pub.dev. Add to your
+`pubspec.yaml`:
 
 ```yaml
 dependencies:
-  vedika_sdk: ^1.0.0
+  vedika_sdk:
+    git:
+      url: https://github.com/vedika-io/vedika-sdk-flutter.git
+      ref: main
 ```
+
+Pin `ref` to a release tag or commit once you ship.
 
 Then run:
 
@@ -98,14 +104,25 @@ try {
   // 401 - Invalid or missing API key
   print(e.message);
 } on VedikaInsufficientCredits catch (e) {
-  // 402 - Wallet balance too low
-  print(e.message);
+  // 402 - Wallet balance too low. Never retried: nothing was charged.
+  print('need \$${e.required}, have \$${e.available}, short \$${e.deficit}');
+  print('add funds: ${e.purchaseUrl}');
 } on VedikaSubscriptionError catch (e) {
   // 403 - Subscription inactive
   print(e.message);
 } on VedikaRateLimitError catch (e) {
-  // 429 - Rate limit exceeded
-  print('Retry after ${e.retryAfterSeconds} seconds');
+  // 429 - read e.code, not rate-limit headers.
+  if (e.isDailyLimit) {
+    // DAILY_LIMIT_EXCEEDED: retrying will keep failing; upgrade or wait for
+    // the daily reset.
+    print('Daily limit reached. Upgrade: ${e.upgradeUrl}');
+  } else {
+    // RATE_LIMIT_EXCEEDED: waiting retryAfterSeconds is enough.
+    print('Retry after ${e.retryAfterSeconds} seconds');
+  }
+} on VedikaIdempotencyNotSupportedError {
+  // 422 - this endpoint does not take an idempotencyKey. Nothing was charged;
+  // call again without one.
 } on VedikaServerError catch (e) {
   // 5xx - Server error
   print(e.message);
@@ -114,6 +131,10 @@ try {
   print(e.message);
 }
 ```
+
+The client never retries a request by itself. It sends an `Idempotency-Key` only
+when you pass `idempotencyKey:` to a call that documents one. Do not pass a key
+to calculators that do not list it; they answer 422.
 
 ## Configuration
 
@@ -219,11 +240,44 @@ final panchang = await vedika.astrology.panchang({
 });
 ```
 
+## CAD and BIM plans
+
+The typed `vedika.cad` service imports DXF or IFC and exports editable R2013 DXF.
+These operations are paid. Set an exact USD budget string and retain the same
+idempotency key when retrying an unchanged request.
+
+```dart
+final imported = await vedika.cad.importDxf(
+  VastuPlanImportDxfRequest(
+    dxf: drawingText,
+    fileName: 'floor.dxf',
+    layerRoles: {'A-SPACE': VastuCadLayerRole.room},
+    maxChargeUsd: '0.10',
+  ),
+  idempotencyKey: 'floor-v1-import',
+);
+final exported = await vedika.cad.exportDxf(
+  VastuPlanExportDxfRequest(
+    plan: imported.data!.plan.toJson(),
+    zones: 16,
+    maxChargeUsd: '0.10',
+  ),
+  idempotencyKey: 'floor-v1-export',
+);
+final drawing = exported.data!.dxf;
+```
+
+Use `vedika.cad.importIfc(VastuPlanImportIfcRequest(ifc: stepText, maxChargeUsd:
+'0.10'), idempotencyKey: 'building-v1-import')` for named spaces per storey.
+DXF imports retain source units/handles; IFC imports retain GlobalIds and north.
+Inspect `needsReview` and `mappingReport` before using an imported plan. DWG
+returns HTTP 415 with guidance to convert to DXF; the SDK preserves that error.
+
 ## Links
 
 - [API Documentation](https://vedika.io/docs)
 - [Dashboard](https://vedika.io/dashboard)
-- [JavaScript SDK](https://www.npmjs.com/package/vedika-sdk)
+- [JavaScript SDK](https://www.npmjs.com/package/@vedika-io/sdk)
 - [Python SDK](https://pypi.org/project/vedika-sdk/)
 
 ## License

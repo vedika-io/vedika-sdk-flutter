@@ -1,5 +1,6 @@
 import '../client.dart';
 import '../models/common.dart';
+import '../models/vastu_plan_import.dart';
 
 /// Vedic astrology endpoints under `/v2/astrology/`.
 ///
@@ -23,17 +24,17 @@ class AstrologyService {
 
   /// Planets-only (lighter response).
   Future<Map<String, dynamic>> planets(BirthDetails bd) =>
-      _client.post('/v2/astrology/planets', bd.toJson());
+      _client.post('/v2/astrology/planetary-positions', bd.toJson());
 
   /// Houses (cusps and lords).
   Future<Map<String, dynamic>> houses(BirthDetails bd) =>
-      _client.post('/v2/astrology/houses', bd.toJson());
+      _client.post('/v2/astrology/house-cusps', bd.toJson());
 
   // ── Dasha ────────────────────────────────────────────────────────
 
   /// Vimshottari Maha Dasha periods.
   Future<Map<String, dynamic>> mahaDasha(BirthDetails bd) =>
-      _client.post('/v2/astrology/maha-dasha', bd.toJson());
+      _client.post('/v2/astrology/mahadasha', bd.toJson());
 
   /// Current dasha (maha + antar + pratyantar).
   Future<Map<String, dynamic>> currentDasha(BirthDetails bd) =>
@@ -41,7 +42,7 @@ class AstrologyService {
 
   /// Antar Dasha sub-periods for a given Maha Dasha planet.
   Future<Map<String, dynamic>> antarDasha(BirthDetails bd) =>
-      _client.post('/v2/astrology/antar-dasha', bd.toJson());
+      _client.post('/v2/astrology/antardasha', bd.toJson());
 
   // ── Doshas ───────────────────────────────────────────────────────
 
@@ -83,9 +84,10 @@ class AstrologyService {
   Future<Map<String, dynamic>> karana(Map<String, dynamic> params) =>
       _client.post('/v2/astrology/karana', params);
 
-  /// Sunrise/sunset/moonrise.
+  /// Sunrise/sunset/moonrise. There is no separate sun-moon route; these times
+  /// come from the Panchang response, so this calls [panchang].
   Future<Map<String, dynamic>> sunMoonTimes(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/sun-moon-times', params);
+      _client.post('/v2/astrology/panchang', params);
 
   // ── Muhurta ──────────────────────────────────────────────────────
 
@@ -105,7 +107,7 @@ class AstrologyService {
 
   /// Ashtakoota (8-fold) Guna matching.
   Future<Map<String, dynamic>> gunaMatch(MatchingPair pair) =>
-      _client.post('/v2/astrology/guna-match', pair.toJson());
+      _client.post('/v2/astrology/guna-milan', pair.toJson());
 
   /// Kundli matching with dosha analysis.
   Future<Map<String, dynamic>> kundliMatch(MatchingPair pair) =>
@@ -118,7 +120,7 @@ class AstrologyService {
       _client.get('/v2/astrology/horoscope/$sign',
           queryParams: date != null ? {'date': date} : null);
 
-  /// List valid zodiac signs (free, no auth).
+  /// List valid zodiac signs (no charge; still needs an API key).
   Future<Map<String, dynamic>> horoscopeSigns() =>
       _client.get('/v2/astrology/horoscope-signs');
 
@@ -164,16 +166,16 @@ class AstrologyService {
 
   /// Life path number.
   Future<Map<String, dynamic>> lifePath(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/life-path', params);
+      _client.post('/v2/astrology/numerology/life-path', params);
 
   /// Destiny number.
   Future<Map<String, dynamic>> destinyNumber(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/destiny-number', params);
+      _client.post('/v2/astrology/numerology/destiny', params);
 
   /// Complete numerology profile.
   Future<Map<String, dynamic>> numerologyComplete(
           Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/numerology-complete', params);
+      _client.post('/v2/astrology/numerology/complete', params);
 
   // ── Varshaphal ───────────────────────────────────────────────────
 
@@ -203,7 +205,7 @@ class AstrologyService {
   Future<Map<String, dynamic>> kpPrediction(Map<String, dynamic> params) =>
       _client.post('/v2/astrology/kp/prediction', params);
 
-  // ── Vastu (80 operations, 17 families) ────────────────────────────
+  // ── Vastu ─────────────────────────────────────────────────────────
   // 2026-08-10: the previous three methods pointed at /vastu/mandala,
   // /vastu/entrance and /vastu/room-placement — none of which exist in the
   // 76-operation surface, so every call 404'd. These are repointed at the real
@@ -229,6 +231,12 @@ class AstrologyService {
     }
     return _client.post('/v2/astrology/vastu/$path', params);
   }
+
+  Future<VastuPlanImportResponse> vastuPlanImportImage(VastuPlanImportImageRequest request) async =>
+      VastuPlanImportResponse(await vastu('plan/import-image', request.toJson()));
+
+  Future<VastuPlanImportResponse> vastuPlanImportPdf(VastuPlanImportPdfRequest request) async =>
+      VastuPlanImportResponse(await vastu('plan/import-pdf', request.toJson()));
 
   /// A GET reference table, e.g. `reference/mandala/9-zone`,
   /// `reference/mandala/45-devatas`, `reference/directions/8`,
@@ -331,7 +339,7 @@ class AstrologyService {
 
   /// Jaimini Chara Karakas.
   Future<Map<String, dynamic>> jaiminiCharaKarakas(BirthDetails bd) =>
-      _client.post('/v2/astrology/jaimini/chara-karakas', bd.toJson());
+      _client.post('/v2/astrology/jaimini/karakas', bd.toJson());
 
   /// Jaimini Arudha Padas.
   Future<Map<String, dynamic>> jaiminiArudhaPadas(BirthDetails bd) =>
@@ -356,24 +364,40 @@ class AstrologyService {
   // ── Festivals ────────────────────────────────────────────────────
 
   /// Hindu festivals for a date range.
+  ///
+  /// Calls `GET /v2/astrology/festivals/upcoming`, which takes a start date
+  /// (`from`), a window length in [days] and an optional [region]. When only
+  /// [startDate] and [endDate] are given, the window is derived from them.
   Future<Map<String, dynamic>> festivals({
     String? startDate,
     String? endDate,
-  }) =>
-      _client.get('/v2/astrology/festivals', queryParams: {
-        if (startDate != null) 'startDate': startDate,
-        if (endDate != null) 'endDate': endDate,
-      });
+    int? days,
+    String? region,
+  }) {
+    var window = days;
+    if (window == null && startDate != null && endDate != null) {
+      final from = DateTime.tryParse(startDate);
+      final to = DateTime.tryParse(endDate);
+      if (from != null && to != null && !to.isBefore(from)) {
+        window = to.difference(from).inDays + 1;
+      }
+    }
+    return _client.get('/v2/astrology/festivals/upcoming', queryParams: {
+      if (startDate != null) 'from': startDate,
+      if (window != null) 'days': '$window',
+      if (region != null) 'region': region,
+    });
+  }
 
   // ── Fixed Stars & Asteroids ──────────────────────────────────────
 
   /// Fixed stars near chart positions.
   Future<Map<String, dynamic>> fixedStars(BirthDetails bd) =>
-      _client.post('/v2/astrology/fixed-stars/natal', bd.toJson());
+      _client.post('/v2/astrology/fixed-stars/conjunctions', bd.toJson());
 
   /// Asteroid positions (Chiron, Lilith, etc.).
   Future<Map<String, dynamic>> asteroids(BirthDetails bd) =>
-      _client.post('/v2/astrology/asteroids/natal', bd.toJson());
+      _client.post('/v2/astrology/asteroids/positions', bd.toJson());
 
   // ── Remedies ─────────────────────────────────────────────────────
 

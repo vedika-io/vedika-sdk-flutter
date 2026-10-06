@@ -45,7 +45,9 @@ class BillingInfo {
   });
 
   factory BillingInfo.fromJson(Map<String, dynamic> json) => BillingInfo(
-        charged: (json['charged'] as num?)?.toDouble() ?? 0.0,
+        charged: json['charged'] == null ? 0.0 : json['charged'] is num
+            ? (json['charged'] as num).toDouble()
+            : double.parse(json['charged'] as String),
         currency: json['currency'] as String? ?? 'USD',
         refunded: json['refunded'] as bool?,
       );

@@ -99,12 +99,23 @@ class WesternService {
       _client.post('/v2/western/midpoints', bd.toJson());
 
   /// Harmonic chart.
-  Future<Map<String, dynamic>> harmonics(Map<String, dynamic> params) =>
-      _client.post('/v2/western/harmonics', params);
+  ///
+  /// [params] must include `harmonic` (the Nth harmonic, for example 5, 7 or
+  /// 9); it becomes the path segment of `POST /v2/western/harmonics/{harmonic}`
+  /// and is not sent in the body.
+  Future<Map<String, dynamic>> harmonics(Map<String, dynamic> params) {
+    final harmonic = params['harmonic'];
+    if (harmonic == null) {
+      throw ArgumentError.value(params, 'params', 'must include "harmonic"');
+    }
+    final body = Map<String, dynamic>.of(params)..remove('harmonic');
+    return _client.post(
+        '/v2/western/harmonics/${Uri.encodeComponent('$harmonic')}', body);
+  }
 
-  /// Primary/secondary directions.
+  /// Primary directions (1 degree per year arc).
   Future<Map<String, dynamic>> directions(Map<String, dynamic> params) =>
-      _client.post('/v2/western/directions', params);
+      _client.post('/v2/western/primary-directions', params);
 
   /// Lunar return.
   Future<Map<String, dynamic>> lunarReturn(Map<String, dynamic> params) =>
@@ -112,21 +123,26 @@ class WesternService {
 
   /// Arabic parts / lots.
   Future<Map<String, dynamic>> lots(BirthDetails bd) =>
-      _client.post('/v2/western/lots', bd.toJson());
+      _client.post('/v2/western/lots/all', bd.toJson());
 
   // ── Expansion: Analysis ──────────────────────────────────────────
 
   /// Astrocartography lines.
   Future<Map<String, dynamic>> astrocartography(BirthDetails bd) =>
-      _client.post('/v2/western/astrocartography', bd.toJson());
+      _client.post('/v2/western/astrocartography/lines', bd.toJson());
 
   /// Aspect pattern detection (Grand Trine, T-Square, etc.).
   Future<Map<String, dynamic>> aspectPatterns(BirthDetails bd) =>
       _client.post('/v2/western/aspect-patterns', bd.toJson());
 
   /// Stellium detection.
-  Future<Map<String, dynamic>> stellium(BirthDetails bd) =>
-      _client.post('/v2/western/stellium', bd.toJson());
+  ///
+  /// The API has no stellium route (`/v2/western/stellium` answers 404), so
+  /// this always fails. Use [aspectPatterns] or [chartShape] instead.
+  @Deprecated('No such API route; use aspectPatterns() or chartShape()')
+  Future<Map<String, dynamic>> stellium(BirthDetails bd) => Future.error(
+      UnsupportedError('The API has no stellium route; use aspectPatterns() '
+          'or chartShape()'));
 
   // ── Expansion: Extra ─────────────────────────────────────────────
 
@@ -136,7 +152,7 @@ class WesternService {
 
   /// Essential dignities.
   Future<Map<String, dynamic>> dignities(BirthDetails bd) =>
-      _client.post('/v2/western/dignities', bd.toJson());
+      _client.post('/v2/western/essential-dignities', bd.toJson());
 
   /// Element balance.
   Future<Map<String, dynamic>> elementBalance(BirthDetails bd) =>
@@ -148,7 +164,7 @@ class WesternService {
 
   /// Hemisphere emphasis.
   Future<Map<String, dynamic>> hemisphereEmphasis(BirthDetails bd) =>
-      _client.post('/v2/western/hemisphere-emphasis', bd.toJson());
+      _client.post('/v2/western/hemisphere', bd.toJson());
 
   /// Chart shape pattern (bowl, bucket, locomotive, etc.).
   Future<Map<String, dynamic>> chartShape(BirthDetails bd) =>
