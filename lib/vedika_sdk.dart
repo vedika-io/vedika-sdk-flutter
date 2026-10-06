@@ -1,6 +1,6 @@
 /// Vedika Intelligence API SDK for Flutter/Dart.
 ///
-/// Provides typed access to Vedika's supported astrology and divination domains:
+/// Provides typed access to 23 domains:
 /// astrology, tarot, numerology, Chinese astrology, I Ching,
 /// crystals, runes, human design, palmistry, and more.
 ///
@@ -32,6 +32,9 @@ export 'src/exceptions.dart';
 
 // Models
 export 'src/models/common.dart';
+export 'src/models/vastu_cad.dart';
+export 'src/models/vastu_cad_requests.dart';
+export 'src/models/vastu_plan_import.dart';
 export 'src/models/birth_chart.dart';
 export 'src/models/dasha.dart';
 export 'src/models/dosha.dart';
@@ -49,6 +52,7 @@ export 'src/models/daily.dart';
 
 // Services
 export 'src/services/astrology_service.dart';
+export 'src/services/vastu_cad_service.dart';
 export 'src/services/western_service.dart';
 export 'src/services/tarot_service.dart';
 export 'src/services/chinese_service.dart';
@@ -73,3 +77,14 @@ export 'src/services/calculator_service.dart';
 export 'src/services/report_service.dart';
 export 'src/services/widget_service.dart';
 export 'src/services/geocode_service.dart';
+
+export 'src/models/vastu_workflow.dart';
+export 'src/models/vastu_workflow_requests.dart';
+export 'src/services/vastu_workflow_service.dart';
+export 'src/models/vastu_rules.dart';
+export 'src/services/vastu_rules_service.dart';
+export 'src/models/vastu_integration_requests.dart';
+export 'src/services/vastu_integration_service.dart';
+export 'src/services/vastu_collaboration_service.dart';
+export 'src/models/vastu_collaboration.dart';
+export 'src/models/vastu_collaboration_requests.dart';

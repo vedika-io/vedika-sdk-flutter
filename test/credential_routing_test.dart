@@ -153,7 +153,7 @@ void main() {
   });
 
   // ---------------------------------------------------------------------
-  // R-004 residual: the ORIGIN gate.
+  // The ORIGIN gate.
   //
   // The 2026-08 hardening closed the scheme (cleartext) and redirect legs but
   // left the host itself unconstrained: any `https://` origin was accepted and

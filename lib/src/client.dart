@@ -6,6 +6,9 @@ import 'package:http/http.dart' as http;
 import 'config.dart';
 import 'exceptions.dart';
 import 'services/astrology_service.dart';
+import 'services/vastu_cad_service.dart';
+import 'services/vastu_rules_service.dart';
+import 'services/vastu_collaboration_service.dart';
 import 'services/western_service.dart';
 import 'services/tarot_service.dart';
 import 'services/chinese_service.dart';
@@ -54,10 +57,20 @@ class VedikaClient {
   /// The canonical Vedika API origin. The only host allowed by default.
   static const String vedikaApiHost = 'api.vedika.io';
 
+  /// SDK version sent as `X-SDK`. Keep in step with `pubspec.yaml`.
+  static const String sdkVersion = '1.0.3';
+
   /// Vedic astrology: birth charts, dashas, doshas, panchang, muhurta,
   /// matching, predictions, KP, Jaimini, Tajaka, Vastu, Lal Kitab,
   /// numerology, ashtakavarga, divisional charts, and more.
   late final AstrologyService astrology;
+
+  /// Typed DXF/IFC intake and editable CAD export.
+  late final VastuCadService cad;
+  late final VastuRulesService rules;
+
+  /// Property sharing, assessment review, activity and erasure.
+  late final VastuCollaborationService properties;
 
   /// Western (tropical) astrology: natal charts, transits, progressions,
   /// solar returns, synastry, composites, midpoints, harmonics.
@@ -176,7 +189,7 @@ class VedikaClient {
         ),
         _httpClient = httpClient ?? http.Client(),
         _ownsClient = httpClient == null {
-    // Credential-routing policy (R-004). Two independent gates, both closed by
+    // Credential-routing policy. Two independent gates, both closed by
     // default:
     //   scheme - the key rides only on HTTPS, so a cleartext baseUrl can't ship
     //            it in the clear. HTTP is allowed for loopback (local dev);
@@ -189,6 +202,9 @@ class VedikaClient {
     _assertSafeBaseUrl(config.baseUrl, allowInsecureHttp, trustedHosts);
     _allowedHost = Uri.parse(config.baseUrl).host.toLowerCase();
     astrology = AstrologyService(this);
+    cad = VastuCadService(this);
+    rules = VastuRulesService(this);
+    properties = VastuCollaborationService(this);
     western = WesternService(this);
     tarot = TarotService(this);
     chinese = ChineseService(this);
@@ -217,7 +233,7 @@ class VedikaClient {
 
   /// Sends a request with redirect-following DISABLED.
   ///
-  /// Credential-routing hardening (R-004): the `http` convenience methods
+  /// Credential-routing hardening: the `http` convenience methods
   /// (`get`/`post`) follow redirects with `followRedirects = true` and re-send
   /// the `Authorization` header to the redirect destination, leaking the API
   /// key to whatever origin a 3xx points at. Building the request explicitly
@@ -227,6 +243,7 @@ class VedikaClient {
     String method,
     Uri uri, {
     String? body,
+    String? idempotencyKey,
   }) async {
     // Defence in depth: never attach the key to a host other than the one
     // validated at construction. The URI is built from config.baseUrl plus a
@@ -242,6 +259,14 @@ class VedikaClient {
     }
     final request = http.Request(method, uri);
     request.headers.addAll(_headers);
+    if (idempotencyKey != null) {
+      if (idempotencyKey.isEmpty ||
+          idempotencyKey.codeUnits.any((unit) => unit < 33 || unit > 126)) {
+        throw ArgumentError.value(idempotencyKey, 'idempotencyKey',
+            'use a nonempty printable ASCII request key without spaces');
+      }
+      request.headers['Idempotency-Key'] = idempotencyKey;
+    }
     request.followRedirects = false;
     if (body != null) request.body = body;
     final streamed = await _httpClient.send(request).timeout(config.timeout);
@@ -268,7 +293,7 @@ class VedikaClient {
     final uri = Uri.parse('${config.baseUrl}$path')
         .replace(queryParameters: queryParams);
     final response = await _send('GET', uri);
-    if (response.statusCode != 200) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       _handleResponse(response); // will throw
     }
     return response.body;
@@ -277,10 +302,12 @@ class VedikaClient {
   /// Sends a POST request to the Vedika API.
   Future<Map<String, dynamic>> post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String? idempotencyKey,
+  }) async {
     final uri = Uri.parse('${config.baseUrl}$path');
-    final response = await _send('POST', uri, body: jsonEncode(body));
+    final response = await _send('POST', uri,
+        body: jsonEncode(body), idempotencyKey: idempotencyKey);
     return _handleResponse(response);
   }
 
@@ -288,7 +315,7 @@ class VedikaClient {
         'Authorization': 'Bearer ${config.apiKey}',
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-SDK': 'vedika-flutter/1.0.0',
+        'X-SDK': 'vedika-flutter/$sdkVersion',
       };
 
   Map<String, dynamic> _handleResponse(http.Response response) {
@@ -296,12 +323,18 @@ class VedikaClient {
     try {
       body = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
-      body = {'error': response.body};
+      // An empty body (204, or an empty error page) has no message to carry.
+      body = response.body.isEmpty ? <String, dynamic>{} : {'error': response.body};
+    }
+
+    // Every 2xx is success: async operations and pending collaboration invites
+    // answer 202, and some answer 201 or 204. Accepting only 200 and 202 would
+    // turn a good response into an error.
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
     }
 
     switch (response.statusCode) {
-      case 200:
-        return body;
       case 401:
         throw VedikaAuthError(
           body['error']?.toString() ?? 'Invalid API key',
@@ -317,16 +350,39 @@ class VedikaClient {
           body['message']?.toString() ?? 'Subscription inactive',
           body: body,
         );
+      case 422:
+        if (body['code'] == 'IDEMPOTENCY_NOT_SUPPORTED') {
+          throw VedikaIdempotencyNotSupportedError(
+            body['message']?.toString() ??
+                'This endpoint does not accept an idempotency key; '
+                    'call again without one',
+            body: body,
+          );
+        }
+        throw VedikaApiError(
+          body['message']?.toString() ??
+              body['error']?.toString() ??
+              'API error: 422',
+          statusCode: 422,
+          body: body,
+        );
       case 429:
+        // The body `code` names the limiter that refused the call. The
+        // rate-limit headers describe the per-minute limiter only, so nothing
+        // here is decided from them. `retryAfter` in the body wins over the
+        // Retry-After header. This client never retries a 429 by itself.
+        final bodyRetry = body['retryAfter'];
         throw VedikaRateLimitError(
           body['message']?.toString() ?? 'Rate limit exceeded',
           body: body,
-          retryAfterSeconds:
-              int.tryParse(response.headers['retry-after'] ?? ''),
+          retryAfterSeconds: bodyRetry is num
+              ? bodyRetry.toInt()
+              : int.tryParse(bodyRetry?.toString() ?? '') ??
+                  int.tryParse(response.headers['retry-after'] ?? ''),
         );
       default:
         if (response.statusCode >= 300 && response.statusCode < 400) {
-          // Credential-routing (R-004): redirects are not followed, so the API
+          // Credential routing: redirects are not followed, so the API
           // key is never forwarded to the redirect destination. A 3xx from the
           // API is unexpected and surfaced as an error rather than chased.
           throw VedikaApiError(
@@ -386,7 +442,7 @@ class VedikaClient {
     return false;
   }
 
-  /// Enforce the credential-routing policy (R-004): scheme gate and origin
+  /// Enforce the credential-routing policy: scheme gate and origin
   /// gate. Throws [ArgumentError] on a disallowed baseUrl, so the key is never
   /// shipped in the clear or off-domain by misconfiguration.
   static void _assertSafeBaseUrl(
@@ -398,7 +454,7 @@ class VedikaClient {
     // Reject embedded credentials / path / query / fragment: the URL
     // "https://api.vedika.io@attacker.invalid" parses with host
     // "attacker.invalid" but reads as api.vedika.io, so the Bearer key would
-    // ride to the attacker on the first request. (R-004 credential routing)
+    // ride to the attacker on the first request.
     if (uri.userInfo.isNotEmpty) {
       throw ArgumentError.value(baseUrl, 'baseUrl',
           'must not contain embedded credentials (user:pass@host)');
