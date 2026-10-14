@@ -5,7 +5,7 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:vedika_sdk/vedika_sdk.dart';
 
-// The 11 GET-only reference tables + the GET+POST dual, from the Rust router
+// The 11 GET-only reference tables + the GET+POST dual, from the API router
 // (VASTU_GET_REFERENCE_ROUTES + VASTU_DUAL_ROUTE in vedika-v2/src/vastu.rs).
 const getOps = [
   'reference/directions/8',
@@ -153,7 +153,7 @@ void main() {
   });
 
   // ---------------------------------------------------------------------
-  // R-004 residual: the ORIGIN gate.
+  // The ORIGIN gate.
   //
   // The 2026-08 hardening closed the scheme (cleartext) and redirect legs but
   // left the host itself unconstrained: any `https://` origin was accepted and
