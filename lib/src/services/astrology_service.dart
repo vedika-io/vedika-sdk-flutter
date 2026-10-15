@@ -12,6 +12,10 @@ class AstrologyService {
   final VedikaClient _client;
   AstrologyService(this._client);
 
+  /// Query parameters for the GET-only routes.
+  static Map<String, String> _query(Map<String, dynamic> params) =>
+      params.map((k, v) => MapEntry(k, '$v'));
+
   // ── Charts & Kundli ──────────────────────────────────────────────
 
   /// Full birth chart with planetary positions, houses, aspects.
@@ -36,9 +40,10 @@ class AstrologyService {
   Future<Map<String, dynamic>> mahaDasha(BirthDetails bd) =>
       _client.post('/v2/astrology/mahadasha', bd.toJson());
 
-  /// Current dasha (maha + antar + pratyantar).
+  /// Current dasha (maha + antar + pratyantar) for Vimshottari, with the
+  /// Ashtottari and Yogini timelines.
   Future<Map<String, dynamic>> currentDasha(BirthDetails bd) =>
-      _client.post('/v2/astrology/current-dasha', bd.toJson());
+      _client.post('/v2/astrology/dasha/current-all', bd.toJson());
 
   /// Antar Dasha sub-periods for a given Maha Dasha planet.
   Future<Map<String, dynamic>> antarDasha(BirthDetails bd) =>
@@ -95,13 +100,17 @@ class AstrologyService {
   Future<Map<String, dynamic>> muhurta(Map<String, dynamic> params) =>
       _client.post('/v2/astrology/muhurta', params);
 
-  /// Choghadiya (time divisions of the day).
+  /// Choghadiya (time divisions of the day), e.g.
+  /// `{'latitude': 18.52, 'longitude': 73.86, 'timezone': 'Asia/Kolkata'}`.
+  /// The route is GET-only, so [params] become the query string.
   Future<Map<String, dynamic>> choghadiya(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/choghadiya', params);
+      _client.get('/v2/astrology/choghadiya', queryParams: _query(params));
 
-  /// Hora (planetary hour).
+  /// Hora (planetary hour). Same parameters as [choghadiya], plus an
+  /// optional `date`. The route is GET-only, so [params] become the query
+  /// string.
   Future<Map<String, dynamic>> hora(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/hora', params);
+      _client.get('/v2/astrology/hora', queryParams: _query(params));
 
   // ── Matching ─────────────────────────────────────────────────────
 
@@ -126,13 +135,29 @@ class AstrologyService {
 
   // ── Transits ─────────────────────────────────────────────────────
 
+  /// Current positions of all nine planets, each with its sign, degree,
+  /// nakshatra, retrograde flag, and house counted from the natal Lagna and
+  /// natal Moon.
+  Future<Map<String, dynamic>> planetTransit(BirthDetails bd) =>
+      _client.post('/v2/astrology/planet-transit', bd.toJson());
+
   /// Saturn transit (Gochar).
+  ///
+  /// Calls the documented `/v2/astrology/planet-transit` route, so the
+  /// response lists all nine planets; Saturn is the entry in `data.planets`
+  /// whose `name` is `Saturn`. For Saturn over the natal Moon, use [sadeSati].
+  @Deprecated('Use planetTransit() and read Saturn from data.planets')
   Future<Map<String, dynamic>> saturnTransit(BirthDetails bd) =>
-      _client.post('/v2/astrology/saturn-transit', bd.toJson());
+      planetTransit(bd);
 
   /// Moon transit.
+  ///
+  /// Calls the documented `/v2/astrology/planet-transit` route with
+  /// [params] (birth details as a map), so the response lists all nine
+  /// planets; the Moon is the entry in `data.planets` whose `name` is `Moon`.
+  @Deprecated('Use planetTransit() and read the Moon from data.planets')
   Future<Map<String, dynamic>> moonTransit(Map<String, dynamic> params) =>
-      _client.post('/v2/astrology/moon-transit', params);
+      _client.post('/v2/astrology/planet-transit', params);
 
   // ── Strength ─────────────────────────────────────────────────────
 
@@ -226,7 +251,7 @@ class AstrologyService {
     if (path.startsWith('reference/') || path == 'direction/declination') {
       return _client.get(
         '/v2/astrology/vastu/$path',
-        queryParams: params.map((k, v) => MapEntry(k, '$v')),
+        queryParams: _query(params),
       );
     }
     return _client.post('/v2/astrology/vastu/$path', params);
