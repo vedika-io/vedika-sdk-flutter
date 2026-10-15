@@ -58,7 +58,7 @@ class VedikaClient {
   static const String vedikaApiHost = 'api.vedika.io';
 
   /// SDK version sent as `X-SDK`. Keep in step with `pubspec.yaml`.
-  static const String sdkVersion = '1.0.4';
+  static const String sdkVersion = '1.0.5';
 
   /// Vedic astrology: birth charts, dashas, doshas, panchang, muhurta,
   /// matching, predictions, KP, Jaimini, Tajaka, Vastu, Lal Kitab,

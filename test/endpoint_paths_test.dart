@@ -33,6 +33,24 @@ void main() {
     'planets': ('/v2/astrology/planetary-positions', (c) => c.astrology.planets(bd)),
     'houses': ('/v2/astrology/house-cusps', (c) => c.astrology.houses(bd)),
     'mahaDasha': ('/v2/astrology/mahadasha', (c) => c.astrology.mahaDasha(bd)),
+    'currentDasha': (
+      '/v2/astrology/dasha/current-all',
+      (c) => c.astrology.currentDasha(bd)
+    ),
+    'planetTransit': (
+      '/v2/astrology/planet-transit',
+      (c) => c.astrology.planetTransit(bd)
+    ),
+    'saturnTransit': (
+      '/v2/astrology/planet-transit',
+      // ignore: deprecated_member_use_from_same_package
+      (c) => c.astrology.saturnTransit(bd)
+    ),
+    'moonTransit': (
+      '/v2/astrology/planet-transit',
+      // ignore: deprecated_member_use_from_same_package
+      (c) => c.astrology.moonTransit(bd.toJson())
+    ),
     'antarDasha': ('/v2/astrology/antardasha', (c) => c.astrology.antarDasha(bd)),
     'gunaMatch': (
       '/v2/astrology/guna-milan',
@@ -174,6 +192,28 @@ void main() {
     expectCall('GET', '/v2/astrology/festivals/upcoming');
     expect(seen.single.url.queryParameters, {'from': '2026-10-01', 'days': '10'});
   });
+
+  for (final (name, call) in [
+    (
+      'choghadiya',
+      (VedikaClient c, Map<String, dynamic> p) => c.astrology.choghadiya(p)
+    ),
+    ('hora', (VedikaClient c, Map<String, dynamic> p) => c.astrology.hora(p)),
+  ]) {
+    test('$name is a GET with the parameters as the query string', () async {
+      await call(client, {
+        'latitude': 18.5204,
+        'longitude': 73.8567,
+        'timezone': 'Asia/Kolkata',
+      });
+      expectCall('GET', '/v2/astrology/$name');
+      expect(seen.single.url.queryParameters, {
+        'latitude': '18.5204',
+        'longitude': '73.8567',
+        'timezone': 'Asia/Kolkata',
+      });
+    });
+  }
 
   test('stellium reports that the route does not exist', () {
     // ignore: deprecated_member_use_from_same_package

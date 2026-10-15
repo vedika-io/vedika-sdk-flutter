@@ -1,3 +1,36 @@
+## 1.0.5 - 2026-10-15
+
+### Fixed
+
+- Five methods called routes that the API does not document. Each now calls
+  the documented route:
+  - `astrology.currentDasha` calls `/v2/astrology/dasha/current-all`. The
+    Vimshottari block now carries the full Maha, Antar and Pratyantar ladder
+    with `currentMahaDasha`, `currentAntarDasha` and `currentPratyantarDasha`,
+    and the Ashtottari and Yogini blocks are full timelines. Before, each
+    block held only the running period.
+  - `astrology.choghadiya` and `astrology.hora` send GET with the parameters
+    as the query string, as documented. The POST they sent before was
+    rejected with 400 asking for a birth datetime.
+  - `astrology.saturnTransit` and `astrology.moonTransit` call
+    `/v2/astrology/planet-transit` and are deprecated. The response now lists
+    all nine planets under `data.planets`. Read Saturn or the Moon from the
+    entry with that `name`. Each entry has `sign`, `signNumber`, `degree`,
+    `nakshatra`, `isRetrograde`, `houseFromLagna` and `houseFromMoon`, with
+    `natalMoonSign` and `natalLagnaSign` beside the list. The old one-planet
+    fields `effect`, `gocharaVerdict`, `houseFromMoonLabel`, `longitude` and
+    `signIndex` are gone. For Saturn over the natal Moon, use
+    `astrology.sadeSati`.
+
+### Added
+
+- `astrology.planetTransit`, which calls `/v2/astrology/planet-transit`.
+- `test/openapi_paths_test.dart` fails when any SDK method calls a route, or
+  uses a method, that the public API reference does not document. The
+  documented operations are kept in `test/fixtures/public_operations.txt`.
+  `dart run tool/public_operations.dart` refreshes that list inside the
+  Vedika repository.
+
 ## 1.0.4 - 2026-10-14
 
 ### Added
