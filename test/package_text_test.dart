@@ -12,6 +12,19 @@ final internalReference = RegExp(
 );
 
 void main() {
+  test('package description fits pub.dev listing', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final block = RegExp(r'description: >\r?\n((?:  .*\r?\n)+)')
+        .firstMatch(pubspec);
+    expect(block, isNotNull);
+    final description = block!.group(1)!
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .join(' ');
+    expect(description.length, lessThanOrEqualTo(180));
+  });
+
   test('shipped files carry no internal references', () {
     final files = <File>[
       File('README.md'),
