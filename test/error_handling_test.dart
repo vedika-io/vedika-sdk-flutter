@@ -86,6 +86,34 @@ void main() {
       client.dispose();
     });
 
+    test('MONTHLY_SPEND_LIMIT_REACHED is not retryable and is not a daily limit',
+        () async {
+      var calls = 0;
+      final client = _client(MockClient((_) async {
+        calls++;
+        return _json(
+          429,
+          {
+            'success': false,
+            'code': 'MONTHLY_SPEND_LIMIT_REACHED',
+            'message': 'Monthly spend limit reached',
+            'retryAfter': 1,
+          },
+          headers: {'x-ratelimit-remaining': '59', 'retry-after': '1'},
+        );
+      }));
+      await expectLater(
+        client.get('/v2/anything'),
+        throwsA(isA<VedikaRateLimitError>()
+            .having((e) => e.code, 'code', 'MONTHLY_SPEND_LIMIT_REACHED')
+            .having((e) => e.isMonthlySpendLimit, 'isMonthlySpendLimit', isTrue)
+            .having((e) => e.isDailyLimit, 'isDailyLimit', isFalse)
+            .having((e) => e.isRetryable, 'isRetryable', isFalse)),
+      );
+      expect(calls, 1);
+      client.dispose();
+    });
+
     test('RATE_LIMIT_EXCEEDED carries retryAfter from the body', () async {
       final client = _client(MockClient((_) async => _json(
             429,

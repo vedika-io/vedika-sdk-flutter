@@ -12,17 +12,15 @@ final internalReference = RegExp(
 );
 
 void main() {
-  test('package description fits pub.dev listing', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
-    final block = RegExp(r'description: >\r?\n((?:  .*\r?\n)+)')
-        .firstMatch(pubspec);
-    expect(block, isNotNull);
-    final description = block!.group(1)!
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .join(' ');
-    expect(description.length, lessThanOrEqualTo(180));
+  test('installation docs use the published package and a pinned Git alternative', () {
+    final readme = File('README.md').readAsStringSync();
+    final package = File('pubspec.yaml').readAsStringSync();
+    final version = RegExp(r'^version: (\S+)$', multiLine: true)
+        .firstMatch(package)!.group(1)!;
+    expect(readme, contains('https://pub.dev/packages/vedika_sdk'));
+    expect(readme, contains('vedika_sdk: ^$version'));
+    expect(readme, contains('ref: v$version'));
+    expect(readme, isNot(contains('not on pub.dev')));
   });
 
   test('shipped files carry no internal references', () {

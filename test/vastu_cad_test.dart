@@ -108,10 +108,17 @@ void main() {
       expect(data.version, 'R2013');
       expect(data.dxf, contains('AC1027'));
       expect(data.contentType, 'application/dxf');
-      expect(data.unitsCode, 4);
-      expect(data.roomCount, 3);
+      // The mock replays the recorded sandbox reply, which does not echo this
+      // request: the recording (re-harvested in #3370) is a one-room plan in
+      // metres. DXF $INSUNITS 6 is metres; the request above sent 4 (mm).
+      expect(data.unitsCode, 6);
+      expect(data.canonicalUnits, 'm');
+      expect(data.inputUnits, 'm');
+      expect(data.metresPerInputUnit, 1);
+      expect(data.roomCount, 1);
+      expect(data.openingCount, 0);
       expect(data.dimensionCount, greaterThan(0));
-      expect(data.findingCount, 1);
+      expect(data.findingCount, 0);
       expect(data.needsReview, isFalse);
     } finally { client.dispose(); }
   }, skip: _skip);

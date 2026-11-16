@@ -41,8 +41,8 @@ void main() {
   });
 
   test('a route the API does not document is caught', () {
-    const ghost = SdkCall('POST', '/v2/astrology/saturn-transit', 'x');
-    const wrongMethod = SdkCall('POST', '/v2/astrology/choghadiya', 'x');
+    const ghost = SdkCall('POST', '/v2/astrology/no-such-route', 'x');
+    const wrongMethod = SdkCall('DELETE', '/v2/astrology/birth-chart', 'x');
     const dynamicOk = SdkCall('GET', '/v2/astrology/horoscope/*', 'x');
     expect(isDocumented(ghost, fixture), isFalse);
     expect(isDocumented(wrongMethod, fixture), isFalse);

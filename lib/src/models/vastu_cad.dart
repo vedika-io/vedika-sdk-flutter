@@ -1,5 +1,15 @@
 // Generated CAD response models; run scripts/sdks/sync-vastu-response-types.py.
 
+class VastuPlanExportIfcDataStoreysItem {
+  final Map<String, dynamic> raw;
+  VastuPlanExportIfcDataStoreysItem.fromJson(Map<String, dynamic> json) : raw = Map.unmodifiable(json);
+  Map<String, dynamic> toJson() => Map<String, dynamic>.from(raw);
+  int get level => (raw['level'] as int);
+  String get name => (raw['name'] as String);
+  double get elevationM => (raw['elevationM'] as num).toDouble();
+  int get roomCount => (raw['roomCount'] as int);
+}
+
 class VastuPlanImportDxfDataPlanPlot {
   final Map<String, dynamic> raw;
   VastuPlanImportDxfDataPlanPlot.fromJson(Map<String, dynamic> json) : raw = Map.unmodifiable(json);
@@ -9,6 +19,7 @@ class VastuPlanImportDxfDataPlanPlot {
   List<List<double>>? get polygon => raw['polygon'] == null ? null : (raw['polygon'] as List).map((value0) => (value0 as List).map((value1) => (value1 as num).toDouble()).toList(growable: false)).toList(growable: false);
   String? get units => raw['units'] == null ? null : (raw['units'] as String);
   String? get facing => raw['facing'] == null ? null : (raw['facing'] as String);
+  double? get area => raw['area'] == null ? null : (raw['area'] as num).toDouble();
 }
 
 class VastuPlanImportDxfDataPlanRoomsItem {
@@ -73,6 +84,8 @@ class VastuPlanImportDxfDataPlan {
   double? get orientationDeg => raw['orientationDeg'] == null ? null : (raw['orientationDeg'] as num).toDouble();
   String get units => (raw['units'] as String);
   Map<String, dynamic>? get cadMetadata => raw['cadMetadata'] == null ? null : Map<String, dynamic>.from(raw['cadMetadata'] as Map);
+  String? get canonicalUnits => raw['canonicalUnits'] == null ? null : (raw['canonicalUnits'] as String);
+  String? get sourceInputUnits => raw['sourceInputUnits'] == null ? null : (raw['sourceInputUnits'] as String);
 }
 
 class VastuPlanImportDxfDataMappingReportItem {
@@ -97,6 +110,40 @@ class VastuPlanImportDxfDataReviewReasonsItem {
   Map<String, dynamic> toJson() => Map<String, dynamic>.from(raw);
   String? get id => raw['id'] == null ? null : (raw['id'] as String);
   String get reason => (raw['reason'] as String);
+}
+
+class VastuPlanImportDxfDataStoreysItemBounds {
+  final Map<String, dynamic> raw;
+  VastuPlanImportDxfDataStoreysItemBounds.fromJson(Map<String, dynamic> json) : raw = Map.unmodifiable(json);
+  Map<String, dynamic> toJson() => Map<String, dynamic>.from(raw);
+  double get minX => (raw['minX'] as num).toDouble();
+  double get minY => (raw['minY'] as num).toDouble();
+  double get maxX => (raw['maxX'] as num).toDouble();
+  double get maxY => (raw['maxY'] as num).toDouble();
+}
+
+class VastuPlanImportDxfDataStoreysItem {
+  final Map<String, dynamic> raw;
+  VastuPlanImportDxfDataStoreysItem.fromJson(Map<String, dynamic> json) : raw = Map.unmodifiable(json);
+  Map<String, dynamic> toJson() => Map<String, dynamic>.from(raw);
+  int get index => (raw['index'] as int);
+  String get label => (raw['label'] as String);
+  int get roomCount => (raw['roomCount'] as int);
+  VastuPlanImportDxfDataStoreysItemBounds get bounds => VastuPlanImportDxfDataStoreysItemBounds.fromJson(Map<String, dynamic>.from(raw['bounds'] as Map));
+}
+
+class VastuPlanImportDxfDataWarningsItem {
+  final Map<String, dynamic> raw;
+  VastuPlanImportDxfDataWarningsItem.fromJson(Map<String, dynamic> json) : raw = Map.unmodifiable(json);
+  Map<String, dynamic> toJson() => Map<String, dynamic>.from(raw);
+  String get code => (raw['code'] as String);
+  String? get roomId => raw['roomId'] == null ? null : (raw['roomId'] as String);
+  String? get name => raw['name'] == null ? null : (raw['name'] as String);
+  String? get severity => raw['severity'] == null ? null : (raw['severity'] as String);
+  String? get storey => raw['storey'] == null ? null : (raw['storey'] as String);
+  int? get index => raw['index'] == null ? null : (raw['index'] as int);
+  double? get suggestedTrueNorthDeg => raw['suggestedTrueNorthDeg'] == null ? null : (raw['suggestedTrueNorthDeg'] as num).toDouble();
+  String get detail => (raw['detail'] as String);
 }
 
 class VastuPlanImportIfcDataBuildingsItem {
@@ -182,6 +229,8 @@ class VastuPlanImportIfcDataStoreysItemPlan {
   double? get orientationDeg => raw['orientationDeg'] == null ? null : (raw['orientationDeg'] as num).toDouble();
   String get units => (raw['units'] as String);
   Map<String, dynamic>? get cadMetadata => raw['cadMetadata'] == null ? null : Map<String, dynamic>.from(raw['cadMetadata'] as Map);
+  String? get canonicalUnits => raw['canonicalUnits'] == null ? null : (raw['canonicalUnits'] as String);
+  String? get sourceInputUnits => raw['sourceInputUnits'] == null ? null : (raw['sourceInputUnits'] as String);
 }
 
 class VastuPlanImportIfcDataStoreysItem {
@@ -232,6 +281,9 @@ class VastuPlanImportDxfData {
   String? get units => raw['units'] == null ? null : (raw['units'] as String);
   String? get inputUnits => raw['inputUnits'] == null ? null : (raw['inputUnits'] as String);
   double? get metresPerInputUnit => raw['metresPerInputUnit'] == null ? null : (raw['metresPerInputUnit'] as num).toDouble();
+  String? get canonicalUnits => raw['canonicalUnits'] == null ? null : (raw['canonicalUnits'] as String);
+  List<VastuPlanImportDxfDataStoreysItem>? get storeys => raw['storeys'] == null ? null : (raw['storeys'] as List).map((value0) => VastuPlanImportDxfDataStoreysItem.fromJson(Map<String, dynamic>.from(value0 as Map))).toList(growable: false);
+  List<VastuPlanImportDxfDataWarningsItem>? get warnings => raw['warnings'] == null ? null : (raw['warnings'] as List).map((value0) => VastuPlanImportDxfDataWarningsItem.fromJson(Map<String, dynamic>.from(value0 as Map))).toList(growable: false);
 }
 
 class VastuPlanImportIfcData {
@@ -250,6 +302,7 @@ class VastuPlanImportIfcData {
   String? get units => raw['units'] == null ? null : (raw['units'] as String);
   String? get inputUnits => raw['inputUnits'] == null ? null : (raw['inputUnits'] as String);
   double? get metresPerInputUnit => raw['metresPerInputUnit'] == null ? null : (raw['metresPerInputUnit'] as num).toDouble();
+  String? get canonicalUnits => raw['canonicalUnits'] == null ? null : (raw['canonicalUnits'] as String);
 }
 
 class VastuPlanExportDxfData {
@@ -273,6 +326,7 @@ class VastuPlanExportDxfData {
   String? get units => raw['units'] == null ? null : (raw['units'] as String);
   String? get inputUnits => raw['inputUnits'] == null ? null : (raw['inputUnits'] as String);
   double? get metresPerInputUnit => raw['metresPerInputUnit'] == null ? null : (raw['metresPerInputUnit'] as num).toDouble();
+  String? get canonicalUnits => raw['canonicalUnits'] == null ? null : (raw['canonicalUnits'] as String);
 }
 
 class VastuPlanExportIfcData {
@@ -290,6 +344,8 @@ class VastuPlanExportIfcData {
   String? get inputUnits => raw['inputUnits'] == null ? null : (raw['inputUnits'] as String);
   double? get metresPerInputUnit => raw['metresPerInputUnit'] == null ? null : (raw['metresPerInputUnit'] as num).toDouble();
   String get canonicalUnits => (raw['canonicalUnits'] as String);
+  int? get storeyCount => raw['storeyCount'] == null ? null : (raw['storeyCount'] as int);
+  List<VastuPlanExportIfcDataStoreysItem>? get storeys => raw['storeys'] == null ? null : (raw['storeys'] as List).map((value0) => VastuPlanExportIfcDataStoreysItem.fromJson(Map<String, dynamic>.from(value0 as Map))).toList(growable: false);
 }
 
 class VastuPlanConvertUnitsData {
