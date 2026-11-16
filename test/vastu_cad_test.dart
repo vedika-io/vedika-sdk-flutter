@@ -5,12 +5,11 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:vedika_sdk/vedika_sdk.dart';
 
-// Actual keyless HTTP recordings from our synthetic CAD fixtures.
-// The recordings live in the monorepo only; a standalone checkout skips these tests.
-final _demosFile = File('../../web/vedika-public/js/catalog/vastu-sandbox-demos.json');
-final String? _skip = _demosFile.existsSync()
-    ? null
-    : 'monorepo fixture web/vedika-public/js/catalog/vastu-sandbox-demos.json not present';
+// Keyless synthetic responses: canonical in the monorepo, verified copy in exports.
+final _canonicalDemos = File('../../web/vedika-public/js/catalog/vastu-sandbox-demos.json');
+final _demosFile = _canonicalDemos.existsSync()
+    ? _canonicalDemos
+    : File('test/fixtures/reference/vastu-cad-responses.json');
 Map<String, dynamic> get demos =>
     (jsonDecode(_demosFile.readAsStringSync()) as Map<String, dynamic>)['demos']
         as Map<String, dynamic>;
@@ -57,7 +56,7 @@ void main() {
       expect(data.mappingReport.any((m) => m.handle == '35'), isTrue);
       expect(data.mappingReport.first.stepId, isNull);
     } finally { client.dispose(); }
-  }, skip: _skip);
+  });
 
   test('IFC response retains both storeys, GlobalIds and rotated north', () async {
     late http.Request seen;
@@ -86,7 +85,7 @@ void main() {
       expect(data.storeys.first.buildingId, data.buildings.single.id);
       expect(data.mappingReport.where((m) => m.stepId != null), isNotEmpty);
     } finally { client.dispose(); }
-  }, skip: _skip);
+  });
 
   test('DXF export sends plan/analysis and decodes dimensioned R2013 data', () async {
     late http.Request seen;
@@ -121,7 +120,7 @@ void main() {
       expect(data.findingCount, 0);
       expect(data.needsReview, isFalse);
     } finally { client.dispose(); }
-  }, skip: _skip);
+  });
 
   test('bad exact budgets and header injection are rejected before transport', () async {
     var sends = 0;
