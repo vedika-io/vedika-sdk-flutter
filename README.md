@@ -6,18 +6,23 @@ Covers **23 domains** including Vedic astrology, Western astrology, tarot, Chine
 
 ## Installation
 
-The package is installed from GitHub; it is not on pub.dev. Add to your
-`pubspec.yaml`:
+Install the published [vedika_sdk package](https://pub.dev/packages/vedika_sdk)
+from pub.dev. Add to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  vedika_sdk: ^1.0.5
+```
+
+To use the same release from GitHub instead, pin the release tag:
 
 ```yaml
 dependencies:
   vedika_sdk:
     git:
       url: https://github.com/vedika-io/vedika-sdk-flutter.git
-      ref: main
+      ref: v1.0.5
 ```
-
-Pin `ref` to a release tag or commit once you ship.
 
 Then run:
 
@@ -134,6 +139,11 @@ try {
     // DAILY_LIMIT_EXCEEDED: retrying will keep failing; upgrade or wait for
     // the daily reset.
     print('Daily limit reached. Upgrade: ${e.upgradeUrl}');
+  } else if (e.isMonthlySpendLimit) {
+    // MONTHLY_SPEND_LIMIT_REACHED: the account's monthly spend limit is
+    // reached. It clears only in the new month, or when the owner raises or
+    // removes the limit under Billing. Retrying will keep failing.
+    print('Monthly spend limit reached.');
   } else {
     // RATE_LIMIT_EXCEEDED: waiting retryAfterSeconds is enough.
     print('Retry after ${e.retryAfterSeconds} seconds');

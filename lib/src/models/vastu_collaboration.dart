@@ -43,6 +43,7 @@ class VastuArchiveDeleteDataErasureReceipt {
   String get deletedByAccountHash => (raw['deletedByAccountHash'] as String);
   int get deletedAtEpoch => (raw['deletedAtEpoch'] as int);
   String? get revisionId => raw['revisionId'] == null ? null : (raw['revisionId'] as String);
+  String? get receiptId => raw['receiptId'] == null ? null : (raw['receiptId'] as String);
 }
 
 class VastuPropertiesActivityExportDataEventsItem {
@@ -254,6 +255,7 @@ class VastuPropertiesDeleteDataErasureReceipt {
   String get deletedByAccountHash => (raw['deletedByAccountHash'] as String);
   int get deletedAtEpoch => (raw['deletedAtEpoch'] as int);
   String? get revisionId => raw['revisionId'] == null ? null : (raw['revisionId'] as String);
+  String? get receiptId => raw['receiptId'] == null ? null : (raw['receiptId'] as String);
 }
 
 class VastuArchiveDeleteData {
@@ -271,6 +273,9 @@ class VastuArchiveDeleteData {
   int? get retryAfterEpoch => raw['retryAfterEpoch'] == null ? null : (raw['retryAfterEpoch'] as int);
   String? get revisionId => raw['revisionId'] == null ? null : (raw['revisionId'] as String);
   bool? get replayed => raw['replayed'] == null ? null : (raw['replayed'] as bool);
+  String? get receiptId => raw['receiptId'] == null ? null : (raw['receiptId'] as String);
+  String? get receiptStatus => raw['receiptStatus'] == null ? null : (raw['receiptStatus'] as String);
+  String? get readReceipt => raw['readReceipt'] == null ? null : (raw['readReceipt'] as String);
 }
 
 class VastuPropertiesActivityExportData {
@@ -360,4 +365,7 @@ class VastuPropertiesDeleteData {
   List<String>? get linkedAssessmentIds => raw['linkedAssessmentIds'] == null ? null : (raw['linkedAssessmentIds'] as List).map((value0) => (value0 as String)).toList(growable: false);
   String? get revisionId => raw['revisionId'] == null ? null : (raw['revisionId'] as String);
   bool? get replayed => raw['replayed'] == null ? null : (raw['replayed'] as bool);
+  String? get receiptId => raw['receiptId'] == null ? null : (raw['receiptId'] as String);
+  String? get receiptStatus => raw['receiptStatus'] == null ? null : (raw['receiptStatus'] as String);
+  String? get readReceipt => raw['readReceipt'] == null ? null : (raw['readReceipt'] as String);
 }

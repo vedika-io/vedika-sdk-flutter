@@ -1,0 +1,15 @@
+name: vedika_room_scan_example
+description: Room scan in a Flutter app with vedika_sdk and a WebView.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  vedika_sdk:
+    path: ..
+  webview_flutter: ^4.4.0

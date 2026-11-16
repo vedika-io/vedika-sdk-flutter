@@ -1,3 +1,12 @@
+## Unreleased
+
+### Fixed
+
+- A 429 with body `code` `MONTHLY_SPEND_LIMIT_REACHED` (the account's monthly
+  spend limit) is not retryable. `VedikaRateLimitError.isRetryable` is now
+  false for it, and the new `isMonthlySpendLimit` is true. It clears only in
+  the new month, or when the owner raises or removes the limit under Billing.
+
 ## 1.0.5 - 2026-10-15
 
 ### Fixed

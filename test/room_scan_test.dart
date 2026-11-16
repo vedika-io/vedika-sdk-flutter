@@ -6,10 +6,11 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:vedika_sdk/vedika_sdk.dart';
 
-// Shared with the web page tests and the React bridge tests; present in the monorepo only.
-final _file = File('../fixtures/room-scan-bridge/messages.json');
-final String? _skip =
-    _file.existsSync() ? null : 'monorepo fixture sdks/fixtures/room-scan-bridge/messages.json not present';
+// Prefer canonical fixtures in the monorepo; exported packages carry a verified copy.
+final _canonical = File('../fixtures/room-scan-bridge/messages.json');
+final _file = _canonical.existsSync()
+    ? _canonical
+    : File('test/fixtures/reference/room-scan-messages.json');
 Map<String, dynamic> get fx => jsonDecode(_file.readAsStringSync()) as Map<String, dynamic>;
 Map<String, dynamic> get valid => Map<String, dynamic>.from(fx['validCapture'] as Map);
 Map<String, dynamic> get untagged => Map<String, dynamic>.from(fx['untaggedCapture'] as Map);
@@ -34,7 +35,7 @@ http.Response ok(Object body) =>
     http.Response(jsonEncode(body), 200, headers: {'content-type': 'application/json'});
 
 void main() {
-  test('fixture schema is the bridge schema', () => expect(fx['schema'], roomScanBridgeSchema), skip: _skip);
+  test('fixture schema is the bridge schema', () => expect(fx['schema'], roomScanBridgeSchema));
 
   test('every shared parse case classifies the same way as the web and React bridges', () {
     for (final c in (fx['parseCases'] as List)) {
@@ -57,7 +58,7 @@ void main() {
         expect(got.idempotencyKey, c['expect']['idempotencyKey']);
       }
     }
-  }, skip: _skip);
+  });
 
   test('parse never throws on junk', () {
     for (final junk in [null, 5, <int>[], <String, dynamic>{}, '', '{', msg({})]) {
@@ -95,7 +96,7 @@ void main() {
     expect(body['capture'], valid);
     expect(body['zoneResolution'], 16);
     expect(phases.where((p) => p == RoomScanPhase.uploading).length, 2);
-  }, skip: _skip);
+  });
 
   test('a new scan after reset gets a new key', () async {
     final rig = Rig((n, r) => ok({'success': true, 'data': {}}));
@@ -107,7 +108,7 @@ void main() {
     await ctl.handleMessage(msg({'type': 'capture', 'capture': fx['magneticCapture']}));
     await ctl.upload();
     expect(rig.seen.map((r) => r.headers['Idempotency-Key']), ['key-1-padding', 'key-2-padding']);
-  }, skip: _skip);
+  });
 
   test('untagged capture is held but never uploaded', () async {
     final rig = Rig((n, r) => ok({'success': true}));
@@ -116,7 +117,7 @@ void main() {
     expect(ctl.snapshot.phase, RoomScanPhase.captured);
     await expectLater(ctl.upload(), throwsA(isA<RoomScanRefused>()));
     expect(rig.seen, isEmpty);
-  }, skip: _skip);
+  });
 
   test('upload with nothing scanned is refused', () async {
     final ctl = RoomScanController(client: Rig((n, r) => ok({})).client);
@@ -141,7 +142,7 @@ void main() {
     final app = RoomScanController(client: Rig((n, r) => ok({})).client)..markUnsupported('no WebView on this platform');
     expect(app.snapshot.phase, RoomScanPhase.unsupported);
     expect(app.snapshot.error, 'no WebView on this platform');
-  }, skip: _skip);
+  });
 
   test('page errors surface without inventing a capture; invalid messages change nothing', () async {
     final ctl = RoomScanController(client: Rig((n, r) => ok({})).client);
@@ -163,7 +164,7 @@ void main() {
     expect(rig.seen.single.headers['Idempotency-Key'], 'idem-0001');
     expect(jsonDecode(rig.seen.single.body), fx['mergeBody']);
     expect(injected.single, resolveMergeScript('m-1', {'success': true, 'data': {'floors': 1}}));
-  }, skip: _skip);
+  });
 
   test('merge failure is passed back with status and message', () async {
     final rig = Rig((n, r) => http.Response(jsonEncode({'success': false, 'error': 'insufficient balance'}), 402,
@@ -173,7 +174,7 @@ void main() {
     await ctl.handleMessage(mergeRaw());
     expect(injected.single, contains('rejectMerge("m-1"'));
     expect(injected.single, contains('"status":402'));
-  }, skip: _skip);
+  });
 
   test('a merge request retried while in flight is one call', () async {
     final gate = Completer<void>();
@@ -193,13 +194,13 @@ void main() {
     await Future.wait([a, b]);
     expect(seen.length, 1);
     expect(injected.length, 1);
-  }, skip: _skip);
+  });
 
   test('merge without an inject hook does not call the API', () async {
     final rig = Rig((n, r) => ok({}));
     await RoomScanController(client: rig.client).handleMessage(mergeRaw());
     expect(rig.seen, isEmpty);
-  }, skip: _skip);
+  });
 
   test('service refuses a merge without a valid key and a bad capture before any request', () async {
     final rig = Rig((n, r) => ok({}));
@@ -221,7 +222,7 @@ void main() {
     await ctl.upload();
     expect(rig.seen.single.headers['Idempotency-Key'], 'native-key-0001');
     expect(jsonDecode(rig.seen.single.body), {'capture': valid});
-  }, skip: _skip);
+  });
 
   test('injected script literals survive line separators', () {
     final s = resolveMergeScript('m"1', {'t': 'a\u2028b\u2029c'});
