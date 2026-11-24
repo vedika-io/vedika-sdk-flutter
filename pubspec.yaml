@@ -10,7 +10,7 @@ repository: https://github.com/vedika-io/vedika-sdk-flutter
 documentation: https://vedika.io/docs/guides/flutter-integration
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.8.0 <4.0.0'
 
 dependencies:
   http: ^1.1.0

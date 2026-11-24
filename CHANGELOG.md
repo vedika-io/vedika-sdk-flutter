@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Changed
+
+- Minimum Dart is now 3.8 (was 3.0), and the example app needs Flutter 3.32
+  or newer. These are the oldest toolchains that still receive security
+  fixes and that the current lint and test packages support.
+
 ### Fixed
 
 - A 429 with body `code` `MONTHLY_SPEND_LIMIT_REACHED` (the account's monthly
